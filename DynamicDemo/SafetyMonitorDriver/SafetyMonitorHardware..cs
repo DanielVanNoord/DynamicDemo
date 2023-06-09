@@ -34,7 +34,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
     /// ASCOM SafetyMonitor hardware class for DynamicDemo.
     /// </summary>
     [HardwareClass()] // Class attribute flag this as a device hardware class that needs to be disposed by the local server when it exits.
-    internal static class SafetyMonitorHardware
+    internal class SafetyMonitorHardware
     {
         // Constants used for Profile persistence
         internal const string comPortProfileName = "COM Port";
@@ -42,19 +42,19 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         internal const string traceStateProfileName = "Trace Level";
         internal const string traceStateDefault = "true";
 
-        private static string DriverProgId = ""; // ASCOM DeviceID (COM ProgID) for this driver, the value is set by the driver's class initialiser.
-        private static string DriverDescription = ""; // The value is set by the driver's class initialiser.
-        internal static string comPort; // COM port name (if required)
-        private static bool connectedState; // Local server's connected state
-        private static bool runOnce = false; // Flag to enable "one-off" activities only to run once.
-        internal static Util utilities; // ASCOM Utilities object for use as required
-        internal static AstroUtils astroUtilities; // ASCOM AstroUtilities object for use as required
-        internal static TraceLogger tl; // Local server's trace logger object for diagnostic log with information that you specify
+        private string DriverProgId = ""; // ASCOM DeviceID (COM ProgID) for this driver, the value is set by the driver's class initialiser.
+        private string DriverDescription = ""; // The value is set by the driver's class initialiser.
+        internal string comPort; // COM port name (if required)
+        private bool connectedState; // Local server's connected state
+        private bool runOnce = false; // Flag to enable "one-off" activities only to run once.
+        internal Util utilities; // ASCOM Utilities object for use as required
+        internal AstroUtils astroUtilities; // ASCOM AstroUtilities object for use as required
+        internal TraceLogger tl; // Local server's trace logger object for diagnostic log with information that you specify
 
         /// <summary>
         /// Initializes a new instance of the device Hardware class.
         /// </summary>
-        static SafetyMonitorHardware()
+        internal SafetyMonitorHardware(string progID)
         {
             try
             {
@@ -63,7 +63,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 tl = new TraceLogger("", "DynamicDemo.Hardware");
 
                 // DriverProgId has to be set here because it used by ReadProfile to get the TraceState flag.
-                DriverProgId = SafetyMonitor.DriverProgId; // Get this device's ProgID so that it can be used to read the Profile configuration values
+                DriverProgId = progID; // Get this device's ProgID so that it can be used to read the Profile configuration values
 
                 // ReadProfile has to go here before anything is written to the log because it loads the TraceLogger enable / disable state.
                 ReadProfile(); // Read device configuration from the ASCOM Profile store, including the trace state
@@ -82,7 +82,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// Place device initialisation code here
         /// </summary>
         /// <remarks>Called every time a new instance of the driver is created.</remarks>
-        internal static void InitialiseHardware()
+        internal void InitialiseHardware()
         {
             // This method will be called every time a new ASCOM client loads your driver
             LogMessage("InitialiseHardware", $"Start.");
@@ -119,13 +119,13 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// the new settings are saved, otherwise the old values are reloaded.
         /// THIS IS THE ONLY PLACE WHERE SHOWING USER INTERFACE IS ALLOWED!
         /// </summary>
-        public static void SetupDialog()
+        public void SetupDialog()
         {
             // Don't permit the setup dialogue if already connected
             if (IsConnected)
                 MessageBox.Show("Already connected, just press OK");
 
-            using (SetupDialogForm F = new SetupDialogForm(tl))
+            using (SetupDialogForm F = new SetupDialogForm(tl, DriverProgId))
             {
                 var result = F.ShowDialog();
                 if (result == DialogResult.OK)
@@ -137,7 +137,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
 
         /// <summary>Returns the list of custom action names supported by this driver.</summary>
         /// <value>An ArrayList of strings (SafeArray collection) containing the names of supported actions.</value>
-        public static ArrayList SupportedActions
+        public ArrayList SupportedActions
         {
             get
             {
@@ -153,7 +153,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <para>Suppose filter wheels start to appear with automatic wheel changers; new actions could be <c>QueryWheels</c> and <c>SelectWheel</c>. The former returning a formatted list
         /// of wheel names and the second taking a wheel name and making the change, returning appropriate values to indicate success or failure.</para>
         /// </returns>
-        public static string Action(string actionName, string actionParameters)
+        public string Action(string actionName, string actionParameters)
         {
             LogMessage("Action", $"Action {actionName}, parameters {actionParameters} is not implemented");
             throw new ActionNotImplementedException("Action " + actionName + " is not implemented by this driver");
@@ -168,7 +168,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// if set to <c>true</c> the string is transmitted 'as-is'.
         /// If set to <c>false</c> then protocol framing characters may be added prior to transmission.
         /// </param>
-        public static void CommandBlind(string command, bool raw)
+        public void CommandBlind(string command, bool raw)
         {
             CheckConnected("CommandBlind");
             // TODO The optional CommandBlind method should either be implemented OR throw a MethodNotImplementedException
@@ -189,7 +189,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <returns>
         /// Returns the interpreted boolean response received from the device.
         /// </returns>
-        public static bool CommandBool(string command, bool raw)
+        public bool CommandBool(string command, bool raw)
         {
             CheckConnected("CommandBool");
             // TODO The optional CommandBool method should either be implemented OR throw a MethodNotImplementedException
@@ -210,7 +210,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <returns>
         /// Returns the string response received from the device.
         /// </returns>
-        public static string CommandString(string command, bool raw)
+        public string CommandString(string command, bool raw)
         {
             CheckConnected("CommandString");
             // TODO The optional CommandString method should either be implemented OR throw a MethodNotImplementedException
@@ -236,7 +236,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// by the local server just before it shuts down.
         /// 
         /// </remarks>
-        public static void Dispose()
+        public void Dispose()
         {
             try { LogMessage("Dispose", $"Disposing of assets and closing down."); } catch { }
 
@@ -269,7 +269,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// You can also read the property to check whether it is connected. This reports the current hardware state.
         /// </summary>
         /// <value><c>true</c> if connected to the hardware; otherwise, <c>false</c>.</value>
-        public static bool Connected
+        public bool Connected
         {
             get
             {
@@ -305,7 +305,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// Returns a description of the device, such as manufacturer and model number. Any ASCII characters may be used.
         /// </summary>
         /// <value>The description.</value>
-        public static string Description
+        public string Description
         {
             // TODO customise this device description if required
             get
@@ -318,7 +318,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// Descriptive and version information about this ASCOM driver.
         /// </summary>
-        public static string DriverInfo
+        public string DriverInfo
         {
             get
             {
@@ -333,7 +333,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// A string containing only the major and minor version of the driver formatted as 'm.n'.
         /// </summary>
-        public static string DriverVersion
+        public string DriverVersion
         {
             get
             {
@@ -347,7 +347,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// The interface version number that this device supports.
         /// </summary>
-        public static short InterfaceVersion
+        public short InterfaceVersion
         {
             // set by the driver wizard
             get
@@ -360,7 +360,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// The short name of the driver, for display purposes
         /// </summary>
-        public static string Name
+        public string Name
         {
             // TODO customise this device name as required
             get
@@ -379,7 +379,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// Indicates whether the monitored state is safe for use.
         /// </summary>
         /// <value>True if the state is safe, False if it is unsafe.</value>
-        public static bool IsSafe
+        public bool IsSafe
         {
             get
             {
@@ -396,7 +396,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// Returns true if there is a valid connection to the driver hardware
         /// </summary>
-        private static bool IsConnected
+        private bool IsConnected
         {
             get
             {
@@ -409,7 +409,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// Use this function to throw an exception if we aren't connected to the hardware
         /// </summary>
         /// <param name="message"></param>
-        private static void CheckConnected(string message)
+        private void CheckConnected(string message)
         {
             if (!IsConnected)
             {
@@ -420,7 +420,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// Read the device configuration from the ASCOM Profile store
         /// </summary>
-        internal static void ReadProfile()
+        internal void ReadProfile()
         {
             using (Profile driverProfile = new Profile())
             {
@@ -433,7 +433,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <summary>
         /// Write the device configuration to the  ASCOM  Profile store
         /// </summary>
-        internal static void WriteProfile()
+        internal void WriteProfile()
         {
             using (Profile driverProfile = new Profile())
             {
@@ -448,7 +448,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// </summary>
         /// <param name="identifier"></param>
         /// <param name="message"></param>
-        internal static void LogMessage(string identifier, string message)
+        internal void LogMessage(string identifier, string message)
         {
             tl.LogMessageCrLf(identifier, message);
         }
@@ -459,7 +459,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
         /// <param name="identifier"></param>
         /// <param name="message"></param>
         /// <param name="args"></param>
-        internal static void LogMessage(string identifier, string message, params object[] args)
+        internal void LogMessage(string identifier, string message, params object[] args)
         {
             var msg = string.Format(message, args);
             LogMessage(identifier, msg);

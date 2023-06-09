@@ -11,6 +11,7 @@
 //	* ALL DECLARATIONS MUST BE STATIC HERE!! INSTANCES OF THIS CLASS MUST NEVER BE CREATED!
 
 using ASCOM;
+using ASCOM.DynamicDemo.SafetyMonitor;
 using ASCOM.Utilities;
 using System;
 using System.Collections.Generic;
@@ -36,6 +37,8 @@ namespace ASCOM.LocalServer
         // Shared serial port. This will allow multiple drivers to use one single serial port.
         private static Serial sharedSerial = new Serial();      // Shared serial port
         private static int serialConnectionCount = 0;     // counter for the number of connections to the serial port
+
+        internal static Dictionary<string, SafetyMonitorHardware> SafetyMonitors = new Dictionary<string, SafetyMonitorHardware>();
 
         // Public access to shared resources
 

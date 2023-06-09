@@ -1,3 +1,4 @@
+using ASCOM.LocalServer;
 using ASCOM.Utilities;
 using System;
 using System.Collections.Generic;
@@ -14,10 +15,13 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
     {
         const string NO_PORTS_MESSAGE = "No COM ports found";
         TraceLogger tl; // Holder for a reference to the driver's trace logger
+        string DriverProgId;
 
-        public SetupDialogForm(TraceLogger tlDriver)
+        public SetupDialogForm(TraceLogger tlDriver, string progID)
         {
             InitializeComponent();
+
+            DriverProgId = progID;
 
             // Save the provided trace logger for use within the setup dialogue
             tl = tlDriver;
@@ -43,7 +47,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             }
             else // A valid COM port has been selected
             {
-                SafetyMonitorHardware.comPort = (string)comboBoxComPort.SelectedItem;
+                SharedResources.SafetyMonitors[DriverProgId].comPort = (string)comboBoxComPort.SelectedItem;
                 tl.LogMessage("Setup OK", $"New configuration values - COM Port: {comboBoxComPort.SelectedItem}");
             }
         }
@@ -91,9 +95,9 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             }
 
             // select the current port if possible
-            if (comboBoxComPort.Items.Contains(SafetyMonitorHardware.comPort))
+            if (comboBoxComPort.Items.Contains(SharedResources.SafetyMonitors[DriverProgId].comPort))
             {
-                comboBoxComPort.SelectedItem = SafetyMonitorHardware.comPort;
+                comboBoxComPort.SelectedItem = SharedResources.SafetyMonitors[DriverProgId].comPort;
             }
 
             tl.LogMessage("InitUI", $"Set UI controls to Trace: {chkTrace.Checked}, COM Port: {comboBoxComPort.SelectedItem}");

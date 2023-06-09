@@ -47,7 +47,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
     [ClassInterface(ClassInterfaceType.None)]
     public class SafetyMonitor : ReferenceCountedObjectBase, ISafetyMonitor, IDisposable
     {
-        internal static string DriverProgId; // ASCOM DeviceID (COM ProgID) for this driver, the value is retrieved from the ServedClassName attribute in the class initialiser.
+        internal string DriverProgId; // ASCOM DeviceID (COM ProgID) for this driver, the value is retrieved from the ServedClassName attribute in the class initialiser.
         internal static string DriverDescription; // The value is retrieved from the ServedClassName attribute in the class initialiser.
 
         // connectedState holds the connection state from this driver instance's perspective, as opposed to the local server's perspective, which may be different because of other client connections.
@@ -68,6 +68,12 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 Attribute attr = Attribute.GetCustomAttribute(this.GetType(), typeof(ProgIdAttribute));
                 DriverProgId = ((ProgIdAttribute)attr).Value ?? "PROGID NOT SET!";  // Get the driver ProgIDfrom the ProgID attribute.
 
+                // Load the SafetyMonitor hardware into shared resources if it does not exist.
+                if (!SharedResources.SafetyMonitors.ContainsKey(DriverProgId))
+                {
+                    SharedResources.SafetyMonitors.Add(DriverProgId, new SafetyMonitorHardware(DriverProgId));
+                }
+
                 // Pull the display name from the ServedClassName class attribute.
                 attr = Attribute.GetCustomAttribute(this.GetType(), typeof(ServedClassNameAttribute));
                 DriverDescription = ((ServedClassNameAttribute)attr).DisplayName ?? "DISPLAY NAME NOT SET!";  // Get the driver description that displays in the ASCOM Chooser from the ServedClassName attribute.
@@ -80,7 +86,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 SetTraceState();
 
                 // Initialise the hardware if required
-                SafetyMonitorHardware.InitialiseHardware();
+                SharedResources.SafetyMonitors[DriverProgId].InitialiseHardware();
 
                 LogMessage("SafetyMonitor", "Starting driver initialisation");
                 LogMessage("SafetyMonitor", $"ProgID: {DriverProgId}, Description: {DriverDescription}");
@@ -206,7 +212,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 else // Show dialogue
                 {
                     LogMessage("SetupDialog", $"Calling SetupDialog.");
-                    SafetyMonitorHardware.SetupDialog();
+                    SharedResources.SafetyMonitors[DriverProgId].SetupDialog();
                     LogMessage("SetupDialog", $"Completed.");
                 }
             }
@@ -226,7 +232,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     CheckConnected($"SupportedActions");
-                    ArrayList actions = SafetyMonitorHardware.SupportedActions;
+                    ArrayList actions = SharedResources.SafetyMonitors[DriverProgId].SupportedActions;
                     LogMessage("SupportedActions", $"Returning {actions.Count} actions.");
                     return actions;
                 }
@@ -251,7 +257,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             {
                 CheckConnected($"Action {actionName} - {actionParameters}");
                 LogMessage("", $"Calling Action: {actionName} with parameters: {actionParameters}");
-                string actionResponse = SafetyMonitorHardware.Action(actionName, actionParameters);
+                string actionResponse = SharedResources.SafetyMonitors[DriverProgId].Action(actionName, actionParameters);
                 LogMessage("Action", $"Completed.");
                 return actionResponse;
             }
@@ -277,7 +283,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             {
                 CheckConnected($"CommandBlind: {command}, Raw: {raw}");
                 LogMessage("CommandBlind", $"Calling method - Command: {command}, Raw: {raw}");
-                SafetyMonitorHardware.CommandBlind(command, raw);
+                SharedResources.SafetyMonitors[DriverProgId].CommandBlind(command, raw);
                 LogMessage("CommandBlind", $"Completed.");
             }
             catch (Exception ex)
@@ -305,7 +311,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             {
                 CheckConnected($"CommandBool: {command}, Raw: {raw}");
                 LogMessage("CommandBlind", $"Calling method - Command: {command}, Raw: {raw}");
-                bool commandBoolResponse = SafetyMonitorHardware.CommandBool(command, raw);
+                bool commandBoolResponse = SharedResources.SafetyMonitors[DriverProgId].CommandBool(command, raw);
                 LogMessage("CommandBlind", $"Returning: {commandBoolResponse}.");
                 return commandBoolResponse;
             }
@@ -334,7 +340,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             {
                 CheckConnected($"CommandString: {command}, Raw: {raw}");
                 LogMessage("CommandString", $"Calling method - Command: {command}, Raw: {raw}");
-                string commandStringResponse = SafetyMonitorHardware.CommandString(command, raw);
+                string commandStringResponse = SharedResources.SafetyMonitors[DriverProgId].CommandString(command, raw);
                 LogMessage("CommandString", $"Returning: {commandStringResponse}.");
                 return commandStringResponse;
             }
@@ -380,13 +386,13 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                     {
                         connectedState = true;
                         LogMessage("Connected Set", "Connecting to device");
-                        SafetyMonitorHardware.Connected = true;
+                        SharedResources.SafetyMonitors[DriverProgId].Connected = true;
                     }
                     else
                     {
                         connectedState = false;
                         LogMessage("Connected Set", "Disconnecting from device");
-                        SafetyMonitorHardware.Connected = false;
+                        SharedResources.SafetyMonitors[DriverProgId].Connected = false;
                     }
                 }
                 catch (Exception ex)
@@ -408,7 +414,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     CheckConnected($"Description");
-                    string description = SafetyMonitorHardware.Description;
+                    string description = SharedResources.SafetyMonitors[DriverProgId].Description;
                     LogMessage("Description", description);
                     return description;
                 }
@@ -430,7 +436,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     // This should work regardless of whether or not the driver is Connected, hence no CheckConnected method.
-                    string driverInfo = SafetyMonitorHardware.DriverInfo;
+                    string driverInfo = SharedResources.SafetyMonitors[DriverProgId].DriverInfo;
                     LogMessage("DriverInfo", driverInfo);
                     return driverInfo;
                 }
@@ -452,7 +458,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     // This should work regardless of whether or not the driver is Connected, hence no CheckConnected method.
-                    string driverVersion = SafetyMonitorHardware.DriverVersion;
+                    string driverVersion = SharedResources.SafetyMonitors[DriverProgId].DriverVersion;
                     LogMessage("DriverVersion", driverVersion);
                     return driverVersion;
                 }
@@ -474,7 +480,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     // This should work regardless of whether or not the driver is Connected, hence no CheckConnected method.
-                    short interfaceVersion = SafetyMonitorHardware.InterfaceVersion;
+                    short interfaceVersion = SharedResources.SafetyMonitors[DriverProgId].InterfaceVersion;
                     LogMessage("InterfaceVersion", interfaceVersion.ToString());
                     return interfaceVersion;
                 }
@@ -496,7 +502,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                 try
                 {
                     // This should work regardless of whether or not the driver is Connected, hence no CheckConnected method.
-                    string name = SafetyMonitorHardware.Name;
+                    string name = SharedResources.SafetyMonitors[DriverProgId].Name;
                     LogMessage("Name Get", name);
                     return name;
                 }
@@ -526,7 +532,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
                     {
                         return false;
                     }
-                    bool isSafe = SafetyMonitorHardware.IsSafe;
+                    bool isSafe = SharedResources.SafetyMonitors[DriverProgId].IsSafe; // Write to the local server logger;
                     LogMessage("IsSafe", isSafe.ToString());
                     return isSafe;
                 }
@@ -571,7 +577,7 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             }
 
             // Write to the common hardware log shared by all running instances of the driver.
-            SafetyMonitorHardware.LogMessage(identifier, message); // Write to the local server logger
+            SharedResources.SafetyMonitors[DriverProgId].LogMessage(identifier, message); // Write to the local server logger
         }
 
         /// <summary>
