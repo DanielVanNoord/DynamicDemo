@@ -13,14 +13,18 @@
 //
 //
 using ASCOM;
+using ASCOM.DeviceInterface;
 using ASCOM.Utilities;
 using Microsoft.Win32;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
@@ -302,6 +306,9 @@ namespace ASCOM.LocalServer
                 Assembly so = Assembly.GetExecutingAssembly(); // Get the local server assembly 
                 Type[] types = so.GetTypes(); // Get the types in the assembly
 
+                //Add any Pre-Configured dynamic types
+                types = types.Concat(GetDynamicTypes()).ToArray();
+
                 // Iterate over the types identifying those which are drivers
                 foreach (Type type in types)
                 {
@@ -333,6 +340,56 @@ namespace ASCOM.LocalServer
             }
 
             return true;
+        }
+
+        //Returns a list of the dynamically generated driver types.
+        internal static IEnumerable<Type> GetDynamicTypes()
+        {
+            //I'm just going to hard code 3 here. You can store a count and dynamically generate as many as you want.
+            //To add and hot reload the drivers
+            /*
+             * 1. Add the new driver instance to the persistent storage
+             * 2. Start a second instance of this LocalServer calling the Register command (this will elevate it)
+             * 3. The second instance loads the persistent storage and finds and registers the new instances
+             * 4. The second instance closes
+             * 5. Call PopulateListOfAscomDrivers again in the original instance after registration is complete. It will find the added drivers and load them into memory
+             * 6. Clients can now use those drivers and can still access any drivers they were using as the parent instance never closed.
+             * 
+             */
+            List<Type> types = new List<Type>
+            {
+                //This was the one that the driver started with
+                GenerateTypeWithAttributes("SafetyMonitor", new Guid("612961b5-b611-4de2-970f-847eafa18fee"), "ASCOM.DynamicDemo.SafetyMonitor", "ASCOM SafetyMonitor Driver for DynamicDemo", typeof(DynamicDemo.SafetyMonitor.SafetyMonitor), typeof(ISafetyMonitor)),
+
+                //Here are 2 more
+                GenerateTypeWithAttributes("SafetyMonitor", new Guid("100B89DE-F271-4F10-9C7B-17F33B0A8E51"), "ASCOM.DynamicDemo2.SafetyMonitor", "ASCOM SafetyMonitor Driver 2 for DynamicDemo", typeof(DynamicDemo.SafetyMonitor.SafetyMonitor), typeof(ISafetyMonitor)),
+                GenerateTypeWithAttributes("SafetyMonitor", new Guid("4B6CF53F-47F7-4E0E-A24E-70AF299DCDC5"), "ASCOM.DynamicDemo3.SafetyMonitor", "ASCOM SafetyMonitor Driver 3 for DynamicDemo", typeof(DynamicDemo.SafetyMonitor.SafetyMonitor), typeof(ISafetyMonitor))
+            };
+
+            return types;
+        }
+
+
+        internal static Type GenerateTypeWithAttributes(string DeviceType, Guid DriverGuid, string ProgID, string ServedName, Type driverType, Type interfaceType)
+        {
+            var ab = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(ProgID), AssemblyBuilderAccess.Run);
+            var mb = ab.DefineDynamicModule("DynamicCOMDrivers");
+
+            var tb = mb.DefineType(DeviceType, TypeAttributes.Class | TypeAttributes.Public, driverType);
+            tb.AddInterfaceImplementation(interfaceType);
+            tb.SetCustomAttribute(new CustomAttributeBuilder(typeof(ProgIdAttribute).GetConstructor(BindingFlags.Instance | BindingFlags.Public,
+            null, new[] { typeof(string) }, null), new object[] { ProgID }));
+
+            tb.SetCustomAttribute(new CustomAttributeBuilder(typeof(GuidAttribute).GetConstructor(BindingFlags.Instance | BindingFlags.Public,
+            null, new[] { typeof(string) }, null), new object[] { DriverGuid.ToString() }));
+
+            tb.SetCustomAttribute(new CustomAttributeBuilder(typeof(ServedClassNameAttribute).GetConstructor(BindingFlags.Instance | BindingFlags.Public,
+            null, new[] { typeof(string) }, null), new object[] { ServedName }));
+
+            tb.SetCustomAttribute(new CustomAttributeBuilder(typeof(ClassInterfaceAttribute).GetConstructor(BindingFlags.Instance | BindingFlags.Public,
+            null, new[] { typeof(ClassInterfaceType) }, null), new object[] { ClassInterfaceType.None }));
+
+            return tb.CreateType();
         }
 
         #endregion

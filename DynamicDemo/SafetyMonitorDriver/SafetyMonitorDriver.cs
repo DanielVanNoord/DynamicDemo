@@ -41,9 +41,6 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
     /// ASCOM SafetyMonitor Driver for DynamicDemo.
     /// </summary>
     [ComVisible(true)]
-    [Guid("612961b5-b611-4de2-970f-847eafa18fee")]
-    [ProgId("ASCOM.DynamicDemo.SafetyMonitor")]
-    [ServedClassName("ASCOM SafetyMonitor Driver for DynamicDemo")] // Driver description that appears in the Chooser, customise as required
     [ClassInterface(ClassInterfaceType.None)]
     public class SafetyMonitor : ReferenceCountedObjectBase, ISafetyMonitor, IDisposable
     {
