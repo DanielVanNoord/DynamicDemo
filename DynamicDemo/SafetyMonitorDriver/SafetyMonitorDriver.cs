@@ -522,7 +522,10 @@ namespace ASCOM.DynamicDemo.SafetyMonitor
             {
                 try
                 {
-                    CheckConnected("IsSafe");
+                    if (!Connected)
+                    {
+                        return false;
+                    }
                     bool isSafe = SafetyMonitorHardware.IsSafe;
                     LogMessage("IsSafe", isSafe.ToString());
                     return isSafe;
